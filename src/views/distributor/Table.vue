@@ -16,10 +16,24 @@
 		</el-col>
 
 		<!--列表-->
-		<el-table stripe :data="books" highlight-current-row v-loading="listLoading" @selection-change="selsChange" style="width: 100%;" >
+		<el-table ref="filterTable" stripe :data="books" highlight-current-row v-loading="listLoading" @selection-change="selsChange" style="width: 100%;" >
 			<el-table-column type="selection" width="55">
 			</el-table-column>
-      <el-table-column prop="bookid" label="ID" width="auto" sortable>
+      <el-table-column
+        prop="state"
+        label="状态"
+        width="120"
+        :filters="[{ text: '审核通过', value: '审核通过' }, { text: '审核未通过', value: '审核未通过' }, { text: '待审核', value: '待审核' }]"
+        :filter-method="filterTag"
+        filter-placement="bottom-end"
+        fixed="left">
+        <template slot-scope="scope">
+          <el-tag
+            :type="scope.row.state === '审核通过' ? 'success' : ( scope.row.state === '审核未通过' ? 'danger' : 'warning')"
+            disable-transitions>{{scope.row.state}}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="distributorid" label="ID" width="auto" sortable fixed="left"> 
 			</el-table-column>
       <el-table-column prop="image" label="封面" width="70" >
         <template slot-scope="scope">
@@ -122,6 +136,9 @@
             </el-cascader>
           </el-form-item>
         </span>
+        <el-form-item label="数量" prop="stock">
+          <el-input class="little-input" v-model="form.stock" placeholder="请输入添加数量"></el-input>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click.native="addSubmit" :loading="editLoading" :disabled="!allowSubmit2">添加</el-button>
         </el-form-item>
@@ -169,8 +186,9 @@
 </template>
 
 <script>
+  import { mapGetters } from 'vuex'
 	import util from '../../common/js/util'
-	import { getUserListPage, addBooksList, getSearchIsbn, getPageCount, searchBooksListPage, removeBook, batchRemoveUser, editBook } from '../../api/api';
+	import { distributorGetqurey, distributorGetadd, getSearchIsbn, distributorGetcount, searchDistributorbook, distributorGetdelete, batchRemoveUser, distributorGetupdate } from '../../api/api';
   import { throws } from 'assert';
   import { log } from 'util';
 
@@ -210,7 +228,10 @@
 				addFormRules: {
 					isbn: [
 						{ required: true, message: '请输入ISBN', trigger: 'blur' }
-					]
+          ],
+          stock: [
+						{ required: true, message: '请输入数量', trigger: 'blur' }
+          ]
 				},
 				//新增界面数据
 				addForm: {
@@ -222,6 +243,7 @@
         },
         form: {
           isbn: '',
+          stock: ''
         },
         byIsbnBooks: {},
         isbnSearchSuc: false,
@@ -334,10 +356,18 @@
         selectedOptions2: [],
         allowSubmit1: false,
         allowSubmit2: false,
-        sendSels: []
+        sendSels: [],
+        distributorAccount: ''
 			}
 		},
 		methods: {
+      filterTag(value, row) {
+        return row.state === value;
+      },
+      filterHandler(value, row, column) {
+        const property = column['property'];
+        return row[property] === value;
+      },
 			//性别显示转换
 			formatSex: function (row, column) {
 				return row.sex == 1 ? '男' : row.sex == 0 ? '女' : '未知';
@@ -350,27 +380,33 @@
 			getUsers() {
 				let para = {
 					// page: this.page,
-					bookname: this.filters.content
+          bookname: this.filters.content,
+          distributoraccount: this.distributorAccount
         };
         let para2 = {
           index: this.page,
-          size: 10
+          size: 10,
+          distributoraccount: this.distributorAccount
         };
 				this.listLoading = true;
         if(this.filters.content == ''){
-            getPageCount().then((res) => {
-              console.log(111,res.data);
+            let para = {
+              distributoraccount: this.distributorAccount
+            }
+            distributorGetcount(para).then((res) => {
+              console.log(res.data.count);
+              
               this.total = Number(res.data.count);
-              console.log(222,this.total);
             });
-            getUserListPage(para2).then((res) => {  
+            distributorGetqurey(para2).then((res) => {  
+              console.log(res.data);
               this.books = res.data;
               this.listLoading = false;
           });
         } 
         else 
         {
-          searchBooksListPage(para).then((res) => {
+          searchDistributorbook(para).then((res) => {
             this.total = 1;
             this.books = res.data;
             this.listLoading = false;
@@ -384,9 +420,10 @@
 				}).then(() => {
 					this.listLoading = true;
           //NProgress.start();
-          let a = [{bookid: row.bookid}];
-          let para = { bookid: JSON.stringify(a) };
-					removeBook(para).then((res) => {
+          let a = [{distributorid: row.distributorid, distributoraccount: this.distributorAccount}];
+          let para = { distributorid: JSON.stringify(a) };
+          console.log(para);
+					distributorGetdelete(para).then((res) => {
 						this.listLoading = false;
 						//NProgress.done();
 						this.$message({
@@ -418,17 +455,19 @@
 			},
 			//增加
 			addSubmit: function () {
-				// this.$refs.editForm.validate((valid) => {
-				// 	if (valid) {
+				this.$refs.addForm.validate((valid) => {
+					if (valid) {
 						this.$confirm('确认添加吗？', '提示', {}).then(() => {
 							this.editLoading = true;
 							//NProgress.start();
 							let para = {
                 isbn: this.form.isbn,
-                classifyid: this.selectedOptions[1]
+                classifyid: this.selectedOptions[1],
+                distributoraccount: this.distributorAccount,
+                stock: this.form.stock
               }
               console.log(para);
-							addBooksList(para).then((res) => {
+							distributorGetadd(para).then((res) => {
                 this.editLoading = false;
                 console.log(res.data);
                 if(res.data){
@@ -436,7 +475,7 @@
                     message: '添加成功',
                     type: 'success'
                   });
-                  this.editFormVisible = false;
+                  // this.addFormVisible = false;
                   this.getUsers();
                 }else{
                   this.$message({
@@ -446,8 +485,8 @@
                 }
 							});
 						});
-					// }
-				// });
+					}
+				});
 			},
 			//编辑
 			editSubmit: function () {
@@ -458,7 +497,8 @@
               //NProgress.start();
               let _formText = this.editForm
 							let para = {
-                bookid: _formText.bookid,
+                distributorid: _formText.distributorid,
+                distributoraccount: this.distributorAccount,
                 average: _formText.average,
                 price: _formText.price,
                 stock: _formText.stock,
@@ -466,7 +506,7 @@
               };
               console.log(para);
               
-							editBook(para).then((res) => {
+							distributorGetupdate(para).then((res) => {
 								this.addLoading = false;
 								//NProgress.done();
 								this.$message({
@@ -493,7 +533,8 @@
           if(sels){
             for(let s in sels){
               let o = {};
-              o['bookid'] = sels[s].bookid;
+              o['distributorid'] = sels[s].distributorid;
+              o['distributoraccount'] = this.distributorAccount;
               a.push(o);
             }
             this.sendSels = JSON.stringify(a);
@@ -502,8 +543,8 @@
           }
 					this.listLoading = true;
 					//NProgress.start();
-          let para = { bookid: this.sendSels };
-					removeBook(para).then((res) => {
+          let para = { distributorid: this.sendSels };
+					distributorGetdelete(para).then((res) => {
 						this.listLoading = false;
 						//NProgress.done();
 						this.$message({
@@ -548,7 +589,13 @@
       }
 		},
 		mounted() {
-			this.getUsers();
+      this.distributorAccount  = JSON.parse(sessionStorage.getItem('user')).account;
+      this.getUsers();
+    },
+    computed: {
+      ...mapGetters([
+        'getAccount'
+      ])
     }
 	}
 
@@ -585,9 +632,5 @@
 }
 .isbn-box>div{
   margin-top: 10px;
-}
-.add-form{
-  display: flex;
-  justify-content: space-between;
 }
 </style>

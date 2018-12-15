@@ -169,8 +169,8 @@
 </template>
 
 <script>
-	import util from '../../common/js/util'
-	import { getUserListPage, addBooksList, getSearchIsbn, getPageCount, searchBooksListPage, removeBook, batchRemoveUser, editBook } from '../../api/api';
+	import util from '@/common/js/util.js'
+	import { getUserListPage, addBooksList, getSearchIsbn, getPageCount, searchBooksListPage, removeBook, batchRemoveUser, editBook } from '@/api/api';
   import { throws } from 'assert';
   import { log } from 'util';
 

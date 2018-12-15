@@ -24,6 +24,7 @@
 
 <script>
   import { requestLogin } from '../api/api';
+  import { mapActions } from 'vuex'
   //import NProgress from 'nprogress'
   export default {
     data() {
@@ -48,6 +49,7 @@
       };
     },
     methods: {
+      ...mapActions(['getAccount']),
       hhh(value) {
         console.log(this.radio);
       },
@@ -71,10 +73,10 @@
                   type: 'error'
                 });
               } else {
+                // this.$store.dispatch('getAccount', this.ruleForm2.account);
                 let account = { 'account': _this.ruleForm2.account, 'src': data[0].src };
-                console.log(1,_this.ruleForm2.account);
                 sessionStorage.setItem('user', JSON.stringify(account));
-                this.$router.push({ path: '/table' });
+                this.$router.push({ path: '/' + this.radio + '/table' });
               }
             });
           } else {
